@@ -20,7 +20,7 @@ from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt
-from lingzhi_engine.settings import MEDIA_ROOT
+from lingzhi_engine.settings import SHARE_ROOT
 from django.utils.translation import gettext as _
 from django.utils.translation import activate
 
@@ -200,10 +200,7 @@ class ExportPort():
             elif type == 'xlsx':
                 file_path = self.generate_xlsx_report(user, project, vul, count_result, levelInfo, timestamp)
             if file_path != "":
-                bin_file = open(file_path, "rb")
-                file_data = bin_file.read()
-                bin_file.close()
-                report.file = file_data
+                report.file = file_path
                 report.status = 1
                 report.save()
                 IastMessage.objects.create(
@@ -369,10 +366,21 @@ class ExportPort():
         document.styles['TitleTwo'].font.name = "Arial"
         document.styles['TitleThree'].font.size = Pt(16)
         document.styles['TitleFour'].font.size = Pt(14)
-        filename = f"{MEDIA_ROOT}/reports/vul-report-{user.id}-{timestamp}.docx"
-        document.save(filename)
 
-        return filename
+        relative_report_path = self.make_report_path()
+        docx_relative_filename = f"{relative_report_path}/vul-report-{user.id}-{timestamp}.docx"
+        document.save(f"{SHARE_ROOT}{docx_relative_filename}")
+
+        return docx_relative_filename
+
+    def make_report_path(self):
+        import datetime
+        _now = datetime.datetime.now()
+        relative_path = f"/reports/{_now.year}/{_now.month}/{_now.day}"
+        file_path = f"{SHARE_ROOT}/{relative_path}"
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        return relative_path
 
     def generate_pdf_report(self, user, project, vul, count_result, levelInfo, timestamp):
         from django.template.loader import render_to_string
@@ -447,8 +455,9 @@ class ExportPort():
                 vulTypeDetailArray.append(vulTypeDetail)
                 type_ind = type_ind + 1
 
-        pdf_filename = f"{MEDIA_ROOT}/reports/vul-report-{user.id}-{timestamp}.pdf"
-        html_filename = f"{MEDIA_ROOT}/reports/vul-report-{user.id}-{timestamp}.html"
+        relative_report_path = self.make_report_path()
+        pdf_relative_filename = f"{relative_report_path}/vul-report-{user.id}-{timestamp}.pdf"
+        html_filename = f"{SHARE_ROOT}/reports/tmp/vul-report-{user.id}-{timestamp}.html"
 
         rendered = render_to_string(
             './pdf.html',
@@ -487,11 +496,11 @@ class ExportPort():
             html_filename,
             "file:///opt/dongtai/engine/templates/header.html",
             "file:///opt/dongtai/engine/templates/footer.html",
-            pdf_filename,
+            f"{SHARE_ROOT}{pdf_relative_filename}",
         ))
 
-        delete_old_files(f"{MEDIA_ROOT}/reports/")
-        return pdf_filename
+        delete_old_files(f"{SHARE_ROOT}/reports/tmp/")
+        return pdf_relative_filename
 
     def generate_xlsx_report(self, user, project, vul, count_result, levelInfo, timestamp):
         levelNameArr = {}
@@ -566,7 +575,10 @@ class ExportPort():
         from openpyxl import Workbook
         wb = Workbook()
         sheet1 = wb.active
-        xlsx_filename = f"{MEDIA_ROOT}/reports/vul-report-{user.id}-{timestamp}.xlsx"
+
+        relative_report_path = self.make_report_path()
+        xlsx_relative_filename = f"{relative_report_path}/vul-report-{user.id}-{timestamp}.xlsx"
+        xlsx_filename = f"{SHARE_ROOT}/reports/vul-report-{user.id}-{timestamp}.xlsx"
 
         sheet1['A1'] = str(_("Vulnerability type name"))
         sheet1['B1'] = str(_("Severity levels"))
@@ -597,6 +609,5 @@ class ExportPort():
             adjusted_width = (max_length + 2) * 1.2
             sheet1.column_dimensions[column].width = adjusted_width
 
-        wb.save(xlsx_filename)
-        delete_old_files(f"{MEDIA_ROOT}/reports/")
-        return xlsx_filename
+        wb.save(f"{SHARE_ROOT}{xlsx_relative_filename}")
+        return xlsx_relative_filename

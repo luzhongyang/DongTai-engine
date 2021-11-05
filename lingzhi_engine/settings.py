@@ -65,6 +65,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'lingzhi_engine.urls'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'upload')
+SHARE_ROOT = os.path.join(BASE_DIR, 'share')
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -99,7 +100,10 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'OPTIONS': {'charset': 'utf8mb4'},
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'connect_timeout': 600,
+        },
         'USER': config.get("mysql", 'user'),
         'NAME': config.get("mysql", 'name'),
         'PASSWORD': config.get("mysql", 'password'),
